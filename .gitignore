@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.pyc
+
+# Dados gerados localmente (não fazem parte do código)
+historico_testes.json
+usuarios_log.json
+
+# Sistema
+.DS_Store
+Thumbs.db

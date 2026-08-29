@@ -152,6 +152,56 @@ with col_usuario:
         st.session_state.is_admin = False
         st.rerun()
 
+with st.expander("📖 Tutorial rápido — como usar e o que os números significam"):
+    st.markdown(
+        "##### Como usar, passo a passo\n"
+        "1. **Preencha o \"Sobre este teste\"** — nome (obrigatório), área e objetivo. "
+        "O ID é gerado sozinho. O \"Cadastro do teste\" é opcional, mas ajuda bastante na "
+        "hora de medir o resultado depois.\n"
+        "2. **Escolha o tipo de métrica**: *Proporção* pra algo que é sim/não por pessoa "
+        "(converteu, cancelou); *Média/tempo/quantidade* pra um número que varia de pessoa "
+        "pra pessoa (duração, valor em R$, itens).\n"
+        "3. **Diga se você quer que a métrica suba ou caia** (ex.: conversão sobe; churn ou "
+        "tempo de carregamento cai).\n"
+        "4. **Preencha \"como estamos indo hoje\"** e **a menor diferença que já vale a pena** — "
+        "não é o quanto você espera que mude, é o mínimo que precisaria mudar pra valer a "
+        "pena implementar de vez.\n"
+        "5. **Ajuste alfa e poder** se quiser ser mais ou menos rigoroso — os valores padrão "
+        "(1% e 80%) já são um bom começo pra maioria dos testes.\n"
+        "6. **Informe o tráfego diário** e **quantos grupos** você vai comparar.\n"
+        "7. **Defina os guardrails** — o que não pode piorar, com o valor atual de cada um.\n"
+        "8. **Veja o resultado** logo ali do lado, e **salve no histórico** ou **exporte o "
+        "resumo em PDF** quando estiver pronto.\n"
+    )
+    st.markdown(
+        "##### O que cada número do resultado quer dizer\n"
+        "- **Pessoas por grupo / Total do experimento** — quantas pessoas você precisa juntar "
+        "em cada braço do teste antes de poder confiar no resultado.\n"
+        "- **Rodar por X dias** — quanto tempo deixar o teste no ar, já arredondado pra fechar "
+        "semanas completas (cortar no meio da semana pode distorcer o resultado, porque o "
+        "comportamento muda de segunda a domingo).\n"
+        "- **Menor diferença visível em X dias** — se você só puder rodar até esse prazo, essa "
+        "é a menor mudança que ainda dá pra enxergar com confiança.\n"
+        "- **Lift** — o quanto a métrica muda em termos relativos (%), considerando a menor "
+        "diferença que você definiu como \"já vale a pena\".\n"
+        "- **Chance de erro (alfa)** — a chance de achar que funcionou, sem ter funcionado de "
+        "verdade (um falso positivo).\n"
+        "- **Chance de perceber (poder)** — se a mudança for real, qual a chance do teste "
+        "realmente enxergar isso.\n"
+        "- **\"Quanto custa ser mais rigoroso\"** — mostra a troca entre confiança e "
+        "velocidade: pedir menos risco de erro (alfa menor) pede mais gente e, às vezes, "
+        "mais tempo.\n"
+        "- **Guardrails** — métricas que não podem piorar mesmo que o resultado principal "
+        "melhore. Sempre olhe eles junto do resultado, nunca isolados.\n"
+    )
+    st.markdown(
+        "##### E depois que o teste terminar de rodar?\n"
+        "Essa ferramenta cuida só do **desenho** (o dimensionamento, antes de começar). "
+        "Acompanhar o teste já em andamento e analisar o resultado no fim (SRM, crossover, "
+        "novelty etc.) ficam por conta de uma ferramenta de medição separada — o cadastro do "
+        "teste preenchido aqui foi pensado justamente pra facilitar esse handoff."
+    )
+
 if "guardrails" not in st.session_state:
     st.session_state.guardrails = [
         {"nome": g.nome, "direcao": g.direcao, "valor_atual": g.valor_atual} for g in DEFAULT_GUARDRAILS

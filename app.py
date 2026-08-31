@@ -73,23 +73,37 @@ _SHEETS_SCOPES = [
     "https://www.googleapis.com/auth/drive",
 ]
 
+# Guarda o motivo da última tentativa de conectar na planilha, pra mostrar
+# pra admin no painel quando não estiver usando a planilha (em vez de só
+# "não configurado" — ajuda a descobrir o que corrigir). Como a conexão é
+# cacheada por processo (@st.cache_resource), essa variável também precisa
+# ser global — não dá pra guardar em st.session_state, porque só a sessão
+# que "ganhou" a primeira tentativa executaria a função de novo.
+_ERRO_PLANILHA = None
+
 
 @st.cache_resource(show_spinner=False)
 def _planilha_usuarios():
+    global _ERRO_PLANILHA
     try:
         import gspread
         from google.oauth2.service_account import Credentials
-    except ImportError:
+    except ImportError as e:
+        _ERRO_PLANILHA = f"biblioteca não instalada ({e}) — rode 'pip install -r requirements.txt' de novo."
         return None
     try:
         if "gcp_service_account" not in st.secrets or "gsheets_log_url" not in st.secrets:
+            _ERRO_PLANILHA = "secrets não configurados (faltando gcp_service_account e/ou gsheets_log_url)."
             return None
         creds = Credentials.from_service_account_info(
             dict(st.secrets["gcp_service_account"]), scopes=_SHEETS_SCOPES
         )
         cliente = gspread.authorize(creds)
-        return cliente.open_by_url(st.secrets["gsheets_log_url"]).sheet1
-    except Exception:
+        aba = cliente.open_by_url(st.secrets["gsheets_log_url"]).sheet1
+        _ERRO_PLANILHA = None
+        return aba
+    except Exception as e:
+        _ERRO_PLANILHA = f"{type(e).__name__}: {e}"
         return None
 
 
@@ -358,6 +372,20 @@ if st.session_state.get("is_admin"):
     st.subheader("👥 Usuários que já entraram no DaVinci")
     _usando_planilha = _planilha_usuarios() is not None
     _usuarios = _carregar_usuarios_log()
+
+    if not _usando_planilha:
+        if _ERRO_PLANILHA:
+            st.caption(
+                "⚠️ Não consegui usar a planilha Google — caiu pro arquivo local (só desta instância). "
+                "Motivo:"
+            )
+            st.code(_ERRO_PLANILHA, language=None)
+        else:
+            st.caption(
+                "Planilha Google não configurada — usando o arquivo local (só desta instância). "
+                "Veja o README, seção \"Ver quem usou o DaVinci em qualquer dispositivo\"."
+            )
+
     if not _usuarios:
         st.caption("Ninguém entrou ainda.")
     else:
@@ -367,11 +395,7 @@ if st.session_state.get("is_admin"):
                 "(conta quem entrou em qualquer computador, celular ou instância que usa essa planilha)."
             )
         else:
-            st.caption(
-                f"{len(_usuarios)} entrada(s) registrada(s) só nesta instância (arquivo local, "
-                "não é compartilhado com outros devices). Configure a planilha Google (veja o README) "
-                "pra ver todo mundo, de qualquer lugar."
-            )
+            st.caption(f"{len(_usuarios)} entrada(s) registrada(s) só nesta instância.")
         st.table([
             {
                 "Nome": u.get("nome", ""),

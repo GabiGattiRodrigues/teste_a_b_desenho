@@ -6,6 +6,9 @@ __pycache__/
 historico_testes.json
 usuarios_log.json
 
+# Segredos (credenciais da planilha Google etc.) — nunca comitar
+.streamlit/secrets.toml
+
 # Sistema
 .DS_Store
 Thumbs.db

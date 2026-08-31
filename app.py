@@ -59,7 +59,41 @@ def _salvar_historico(lista: list) -> None:
     HISTORICO_PATH.write_text(json.dumps(lista, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def _carregar_usuarios_log() -> list:
+# --------------------------------------------------------------------------
+# Log de "quem já entrou" — por padrão fica só num arquivo local (não
+# aparece pra quem acessa de outro computador/celular/instância). Se uma
+# planilha Google for configurada nos secrets (veja o README), o log passa
+# a ser escrito e lido dali, e aí sim fica igual pra todo mundo, em
+# qualquer device. Se a planilha não estiver configurada ou der erro, o
+# app volta sozinho a usar o arquivo local — nunca quebra por causa disso.
+# --------------------------------------------------------------------------
+
+_SHEETS_SCOPES = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive",
+]
+
+
+@st.cache_resource(show_spinner=False)
+def _planilha_usuarios():
+    try:
+        import gspread
+        from google.oauth2.service_account import Credentials
+    except ImportError:
+        return None
+    try:
+        if "gcp_service_account" not in st.secrets or "gsheets_log_url" not in st.secrets:
+            return None
+        creds = Credentials.from_service_account_info(
+            dict(st.secrets["gcp_service_account"]), scopes=_SHEETS_SCOPES
+        )
+        cliente = gspread.authorize(creds)
+        return cliente.open_by_url(st.secrets["gsheets_log_url"]).sheet1
+    except Exception:
+        return None
+
+
+def _carregar_usuarios_log_local() -> list:
     if USUARIOS_LOG_PATH.exists():
         try:
             return json.loads(USUARIOS_LOG_PATH.read_text(encoding="utf-8"))
@@ -68,13 +102,28 @@ def _carregar_usuarios_log() -> list:
     return []
 
 
+def _carregar_usuarios_log() -> list:
+    aba = _planilha_usuarios()
+    if aba is not None:
+        try:
+            return aba.get_all_records()
+        except Exception:
+            pass
+    return _carregar_usuarios_log_local()
+
+
 def _registrar_usuario(nome: str, admin: bool) -> None:
-    log = _carregar_usuarios_log()
-    log.insert(0, {
-        "nome": nome,
-        "quando": datetime.now().strftime("%d/%m/%Y %H:%M"),
-        "admin": admin,
-    })
+    quando = datetime.now().strftime("%d/%m/%Y %H:%M")
+    tipo = "Administradora" if admin else "Usuário"
+    aba = _planilha_usuarios()
+    if aba is not None:
+        try:
+            aba.append_row([nome, quando, tipo])
+            return
+        except Exception:
+            pass
+    log = _carregar_usuarios_log_local()
+    log.insert(0, {"nome": nome, "quando": quando, "tipo": tipo})
     USUARIOS_LOG_PATH.write_text(json.dumps(log, ensure_ascii=False, indent=2), encoding="utf-8")
 
 st.set_page_config(page_title="DaVinci — Teste A/B", page_icon=_page_icon, layout="wide")
@@ -307,16 +356,27 @@ else:
 if st.session_state.get("is_admin"):
     st.divider()
     st.subheader("👥 Usuários que já entraram no DaVinci")
+    _usando_planilha = _planilha_usuarios() is not None
     _usuarios = _carregar_usuarios_log()
     if not _usuarios:
         st.caption("Ninguém entrou ainda.")
     else:
-        st.caption(f"{len(_usuarios)} entrada(s) de login registrada(s) neste computador.")
+        if _usando_planilha:
+            st.caption(
+                f"{len(_usuarios)} entrada(s) — vindas da planilha compartilhada "
+                "(conta quem entrou em qualquer computador, celular ou instância que usa essa planilha)."
+            )
+        else:
+            st.caption(
+                f"{len(_usuarios)} entrada(s) registrada(s) só nesta instância (arquivo local, "
+                "não é compartilhado com outros devices). Configure a planilha Google (veja o README) "
+                "pra ver todo mundo, de qualquer lugar."
+            )
         st.table([
             {
                 "Nome": u.get("nome", ""),
                 "Quando": u.get("quando", ""),
-                "Tipo": "Administradora" if u.get("admin") else "Usuário",
+                "Tipo": u.get("tipo") or ("Administradora" if u.get("admin") else "Usuário"),
             }
             for u in _usuarios
         ])

@@ -279,6 +279,12 @@ st.caption("Campos com \\* são obrigatórios.")
 
 if "id_teste" not in st.session_state:
     st.session_state.id_teste = _gerar_id_teste()
+if st.session_state.pop("_regenerar_id_teste", False):
+    # Precisa mudar o valor ANTES do widget (abaixo) ser criado nesta mesma
+    # rodada do script — depois que o widget existe, o Streamlit não deixa
+    # mais sobrescrever st.session_state["id_teste"] diretamente (dá
+    # StreamlitAPIException / WidgetAlreadyInstantiatedError).
+    st.session_state.id_teste = _gerar_id_teste()
 
 c1, c2, c3 = st.columns([2, 2, 2])
 with c1:
@@ -298,7 +304,7 @@ with c3:
     with id_col2:
         st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
         if st.button("🔄", key="btn_novo_id", help="Gerar um novo ID", use_container_width=True):
-            st.session_state.id_teste = _gerar_id_teste()
+            st.session_state._regenerar_id_teste = True
             st.rerun()
 
 objetivo_teste = st.text_area(
@@ -877,3 +883,4 @@ with col_save:
 
 st.markdown("---")
 components.html(resumo_html, height=1300, scrolling=True)
+

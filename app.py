@@ -32,12 +32,10 @@ _page_icon = str(LOGO_PATH) if LOGO_PATH.exists() else "🧑‍🎨"
 HISTORICO_PATH = Path(__file__).parent / "historico_testes.json"
 USUARIOS_LOG_PATH = Path(__file__).parent / "usuarios_log.json"
 
-# Senha compartilhada pra quem usa o app no dia a dia, e uma senha à parte
-# pra criadora (Gabi) -- so pra desbloquear o painel de "quem ja entrou".
-# Isso NAO e autenticacao de verdade (as senhas ficam em texto puro aqui no
-# codigo) -- e so uma trava simples pra separar "uso normal" de "modo admin"
-# num prototipo local.
-SENHA_PADRAO = "teste_a_b_produto"
+# O app e aberto: qualquer pessoa entra so com o nome. A senha abaixo serve
+# unicamente pra desbloquear o painel de admin ("quem ja entrou").
+# Isso NAO e autenticacao de verdade (fica em texto puro aqui no codigo) --
+# e so uma trava simples pra separar "uso normal" de "modo admin".
 SENHA_ADMIN = "teste_a_b_gabi"
 
 
@@ -166,25 +164,21 @@ if not st.session_state.get("usuario_nome"):
             "Antes da gente começar, qual é o seu nome? *",
             key="input_boas_vindas_nome", placeholder="Seu nome",
         )
-        senha_input = st.text_input(
-            "Senha de acesso *", key="input_boas_vindas_senha", type="password", placeholder="Senha",
-        )
+        with st.expander("Acesso da criadora (opcional)"):
+            senha_input = st.text_input(
+                "Senha de admin", key="input_boas_vindas_senha", type="password",
+                placeholder="Só quem cuida do app precisa disso",
+            )
         st.caption("Campos com \\* são obrigatórios.")
         if st.button("Vamos começar →", use_container_width=True, type="primary"):
             if not nome_input.strip():
                 st.warning("Preciso do seu nome pra continuar 🙂")
-            elif senha_input == SENHA_ADMIN:
-                st.session_state.usuario_nome = nome_input.strip()
-                st.session_state.is_admin = True
-                _registrar_usuario(nome_input.strip(), True)
-                st.rerun()
-            elif senha_input == SENHA_PADRAO:
-                st.session_state.usuario_nome = nome_input.strip()
-                st.session_state.is_admin = False
-                _registrar_usuario(nome_input.strip(), False)
-                st.rerun()
             else:
-                st.error("Senha incorreta — confere com quem te passou o acesso.")
+                eh_admin = senha_input == SENHA_ADMIN
+                st.session_state.usuario_nome = nome_input.strip()
+                st.session_state.is_admin = eh_admin
+                _registrar_usuario(nome_input.strip(), eh_admin)
+                st.rerun()
     st.stop()
 
 col_logo, col_title, col_usuario = st.columns([1, 6, 2], gap="small")

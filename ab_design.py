@@ -675,26 +675,26 @@ def build_html_summary(plano: PlanoTeste) -> str:
 <html lang="pt-BR"><head><meta charset="utf-8">
 <title>{esc(nome) or 'Desenho de teste A/B'} — DaVinci</title>
 <style>
-  body {{ font-family: -apple-system, "Segoe UI", Arial, sans-serif; background:#FBF7F2; color:#241708;
+  body {{ font-family: -apple-system, "Segoe UI", Arial, sans-serif; background:#F6F9FD; color:#0F1E36;
          margin:0; padding:24px; }}
-  .sheet {{ max-width: 720px; margin: 0 auto; background:#fff; border:1px solid #EAD9C6; border-radius:10px;
+  .sheet {{ max-width: 720px; margin: 0 auto; background:#fff; border:1px solid #D6E2F2; border-radius:10px;
             padding:28px; }}
-  h4 {{ font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:#7A6752; margin:20px 0 8px; }}
+  h4 {{ font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:#5B6B82; margin:20px 0 8px; }}
   h4:first-of-type {{ margin-top:0; }}
-  .head {{ display:flex; justify-content:space-between; gap:14px; border-bottom:2px solid #E85C0D; padding-bottom:14px; }}
+  .head {{ display:flex; justify-content:space-between; gap:14px; border-bottom:2px solid #2A78D6; padding-bottom:14px; }}
   .title {{ font-size:20px; font-weight:700; }}
-  .sub {{ font-size:12.5px; color:#7A6752; margin-top:3px; }}
-  .date {{ font-size:11.5px; color:#7A6752; text-align:right; white-space:nowrap; }}
+  .sub {{ font-size:12.5px; color:#5B6B82; margin-top:3px; }}
+  .date {{ font-size:11.5px; color:#5B6B82; text-align:right; white-space:nowrap; }}
   .grid {{ display:grid; grid-template-columns:repeat(auto-fit, minmax(140px,1fr)); gap:10px; margin-top:6px; }}
-  .m {{ background:#FFF1E3; border-radius:8px; padding:10px; }}
-  .m .l {{ font-size:11px; text-transform:uppercase; color:#9A7D5E; font-weight:600; }}
+  .m {{ background:#EEF4FC; border-radius:8px; padding:10px; }}
+  .m .l {{ font-size:11px; text-transform:uppercase; color:#7A8BA5; font-weight:600; }}
   .m .v {{ font-family: "SFMono-Regular", Menlo, monospace; font-size:17px; font-weight:600; margin-top:3px; }}
-  .big .v {{ color:#B8430A; }}
-  .chip {{ display:inline-block; background:#FBF0D2; color:#6B4E00; border-radius:999px; padding:5px 11px;
+  .big .v {{ color:#1B5DB0; }}
+  .chip {{ display:inline-block; background:#E3EDFB; color:#1F4E8C; border-radius:999px; padding:5px 11px;
            font-size:12.5px; margin:3px 6px 0 0; }}
-  .muted {{ color:#9A7D5E; font-style:italic; font-size:13px; }}
+  .muted {{ color:#7A8BA5; font-style:italic; font-size:13px; }}
   ol {{ margin:0; padding-left:18px; font-size:13px; line-height:1.7; }}
-  .foot {{ margin-top:18px; padding-top:12px; border-top:1px solid #EAD9C6; font-size:11px; color:#9A7D5E; }}
+  .foot {{ margin-top:18px; padding-top:12px; border-top:1px solid #D6E2F2; font-size:11px; color:#7A8BA5; }}
   @media print {{ body {{ background:#fff; padding:0; }} .sheet {{ border:none; box-shadow:none; }} }}
 </style></head>
 <body>

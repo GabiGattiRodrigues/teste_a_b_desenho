@@ -155,7 +155,7 @@ if not st.session_state.get("usuario_nome"):
                 st.image(str(LOGO_PATH), width=140)
         st.markdown(
             "<h2 style='text-align:center; margin-bottom:4px;'>Oi! Eu sou o DaVinci 🎨</h2>"
-            "<p style='text-align:center; color:#7A6752; font-size:15px; margin-top:0;'>"
+            "<p style='text-align:center; color:#5B6B82; font-size:15px; margin-top:0;'>"
             "Vou te ajudar a desenhar (dimensionar) o seu próximo teste A/B, todo explicado em "
             "português simples — sem precisar saber estatística de antemão.</p>",
             unsafe_allow_html=True,
@@ -194,13 +194,13 @@ with col_title:
     )
 with col_usuario:
     _selo_admin = (
-        " <span style='background:#FBF0D2; color:#6B4E00; border-radius:999px; padding:2px 9px; "
+        " <span style='background:#E3EDFB; color:#1F4E8C; border-radius:999px; padding:2px 9px; "
         "font-size:11px; font-weight:600; margin-left:4px;'>admin</span>"
         if st.session_state.get("is_admin") else ""
     )
     st.markdown(
         f"<div style='text-align:right; padding-top:20px;'>"
-        f"<span style='font-size:14px; color:#7A6752;'>👋 Olá, <b>{_esc(st.session_state.usuario_nome)}</b></span>"
+        f"<span style='font-size:14px; color:#5B6B82;'>👋 Olá, <b>{_esc(st.session_state.usuario_nome)}</b></span>"
         f"{_selo_admin}</div>",
         unsafe_allow_html=True,
     )

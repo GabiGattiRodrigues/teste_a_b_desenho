@@ -8,6 +8,9 @@ Cuida só do **desenho do teste** (o dimensionamento, antes de rodar). Acompanha
 o teste já em andamento e diagnósticos pós-coleta (SRM, crossover, novelty etc.)
 ficam fora do escopo — isso é assunto de uma ferramenta de medição separada.
 
+🌐 Português e inglês: botão PT/EN no topo do app (ou `?lang=en` na URL). O resumo em HTML
+sai na língua escolhida.
+
 ## O que tem aqui
 
 - `app.py` — o app em Streamlit (a versão que roda em Python).
@@ -133,3 +136,18 @@ própria máquina.
 Existe também uma versão em HTML/JavaScript autocontida (sem precisar de
 Python), publicada como artifact — a mesma lógica de cálculo, com curva normal
 desenhada e histórico salvo no navegador.
+
+## English
+
+**DaVinci — A/B test design assistant.** It helps you size an A/B test in plain
+language: you describe what you want to test, and it works out how many people
+each group needs and how long to wait — no statistics background required. It
+covers proportion and average metrics, up or down goals, Bonferroni correction
+for more than two arms, finite population correction, guardrails, a cost-of-rigor
+comparison across alpha levels and a shareable HTML summary. It only handles the
+**design** (sizing before the test runs); monitoring and post-collection
+diagnostics belong to a separate measurement tool.
+
+The whole app, its alerts and the HTML summary switch to English with the PT/EN
+toggle at the top (or `?lang=en`). To run it: `pip install -r requirements.txt`
+and `streamlit run app.py`.

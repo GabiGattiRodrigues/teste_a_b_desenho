@@ -36,7 +36,31 @@ Depende apenas da biblioteca padrao do Python (math, dataclasses).
 from __future__ import annotations
 
 import math
+import threading
 from dataclasses import dataclass, field
+
+
+# ---------------------------------------------------------------------------
+# Lingua dos textos (alertas, guardrails, relatorios)
+# ---------------------------------------------------------------------------
+# Portugues por padrao. O app chama definir_idioma("en") no comeco de cada
+# execucao; a lingua fica por thread, entao duas pessoas usando o app ao
+# mesmo tempo em linguas diferentes nao se atrapalham. As contas nao mudam.
+
+_LINGUA = threading.local()
+
+
+def definir_idioma(idioma: str) -> None:
+    _LINGUA.valor = "en" if str(idioma).lower().startswith("en") else "pt"
+
+
+def idioma() -> str:
+    return getattr(_LINGUA, "valor", "pt")
+
+
+def _L(pt: str, en: str) -> str:
+    """A frase na lingua ativa."""
+    return en if idioma() == "en" else pt
 
 
 # ---------------------------------------------------------------------------
@@ -274,8 +298,11 @@ class Guardrail:
     valor_atual: str = ""  # o quanto esta hoje (texto livre: "R$ 45", "3 min", "12%"...)
 
     def texto(self) -> str:
-        rotulo = "nao pode subir" if self.direcao == "nao_pode_subir" else "nao pode cair"
-        valor = f" (hoje: {self.valor_atual})" if self.valor_atual.strip() else ""
+        if self.direcao == "nao_pode_subir":
+            rotulo = _L("nao pode subir", "must not go up")
+        else:
+            rotulo = _L("nao pode cair", "must not go down")
+        valor = f" ({_L('hoje', 'today')}: {self.valor_atual})" if self.valor_atual.strip() else ""
         return f"{self.nome}{valor} {rotulo}"
 
 
@@ -429,7 +456,10 @@ def montar_plano(tipo_metrica: str, direcao: str, baseline_valor: float,
     grupos = []
     for idx in range(variantes):
         letra = chr(ord("A") + idx)
-        papel = "controle" if idx == 0 else ("variante" if variantes == 2 else f"variante {idx}")
+        if idx == 0:
+            papel = _L("controle", "control")
+        else:
+            papel = _L("variante", "variant") if variantes == 2 else f"{_L('variante', 'variant')} {idx}"
         grupos.append({"letra": letra, "papel": papel, "n": n_final})
 
     trafego_no_prazo = trafego_dia * dias_rodar
@@ -465,50 +495,64 @@ def montar_plano(tipo_metrica: str, direcao: str, baseline_valor: float,
     alertas = []
 
     if dias_rodar < 7:
-        alertas.append(Alerta("erro", "Duracao abaixo de 7 dias -- nao cobre um ciclo semanal completo."))
+        alertas.append(Alerta("erro", _L(
+            "Duracao abaixo de 7 dias -- nao cobre um ciclo semanal completo.",
+            "Duration under 7 days -- it doesn't cover a full weekly cycle.")))
 
     if dias_rodar > 42:
         alertas.append(Alerta(
             "erro",
-            f"Duracao de {dias_rodar} dias (> 6 semanas) -- risco de cookie churn e contaminacao. "
-            "Considere aumentar a diferenca minima aceita, o trafego ou afrouxar poder/alfa."
+            _L(f"Duracao de {dias_rodar} dias (> 6 semanas) -- risco de cookie churn e contaminacao. "
+               "Considere aumentar a diferenca minima aceita, o trafego ou afrouxar poder/alfa.",
+               f"Duration of {dias_rodar} days (> 6 weeks) -- risk of cookie churn and contamination. "
+               "Consider raising the minimum accepted difference, the traffic, or loosening power/alpha.")
         ))
     elif dias_rodar > 28:
         alertas.append(Alerta(
             "aviso",
-            f"Duracao de {dias_rodar} dias (4-6 semanas) -- ainda aceitavel, mas fique de olho em cookie churn."
+            _L(f"Duracao de {dias_rodar} dias (4-6 semanas) -- ainda aceitavel, mas fique de olho em cookie churn.",
+               f"Duration of {dias_rodar} days (4-6 weeks) -- still acceptable, but keep an eye on cookie churn.")
         ))
 
     if janela_tem_sazonalidade:
         alertas.append(Alerta(
             "aviso",
-            "A janela do teste foi marcada como sobrepondo feriado ou pico sazonal -- "
-            "considere deslocar o periodo ou tratar o efeito de sazonalidade na analise."
+            _L("A janela do teste foi marcada como sobrepondo feriado ou pico sazonal -- "
+               "considere deslocar o periodo ou tratar o efeito de sazonalidade na analise.",
+               "The test window was flagged as overlapping a holiday or seasonal peak -- "
+               "consider shifting the period or handling the seasonality effect in the analysis.")
         ))
 
     if dias_rodar > 56:
         alertas.append(Alerta(
             "erro",
-            "A diferenca minima pedida e otimista demais para o trafego disponivel -- no ritmo atual "
-            "o teste passaria de 8 semanas. Revise a diferenca minima, alfa, poder ou trafego."
+            _L("A diferenca minima pedida e otimista demais para o trafego disponivel -- no ritmo atual "
+               "o teste passaria de 8 semanas. Revise a diferenca minima, alfa, poder ou trafego.",
+               "The minimum difference requested is too optimistic for the available traffic -- at the current "
+               "pace the test would go past 8 weeks. Review the minimum difference, alpha, power or traffic.")
         ))
 
     if bonferroni_aplicada:
         alertas.append(Alerta(
             "info",
-            f"{variantes} variantes -- correcao de Bonferroni aplicada automaticamente "
-            f"(alfa efetivo por comparacao: {alfa_efetivo*100:.2f}%, em vez de {alfa*100:.2f}%)."
+            _L(f"{variantes} variantes -- correcao de Bonferroni aplicada automaticamente "
+               f"(alfa efetivo por comparacao: {alfa_efetivo*100:.2f}%, em vez de {alfa*100:.2f}%).",
+               f"{variantes} variants -- Bonferroni correction applied automatically "
+               f"(effective alpha per comparison: {alfa_efetivo*100:.2f}%, instead of {alfa*100:.2f}%).")
         ))
 
     if fpc_aplicada:
         alertas.append(Alerta(
             "info",
-            f"A amostra requerida passa de 5% da populacao informada -- correcao de populacao "
-            f"finita aplicada (n ajustado de {n} para {n_final} por braco)."
+            _L(f"A amostra requerida passa de 5% da populacao informada -- correcao de populacao "
+               f"finita aplicada (n ajustado de {n} para {n_final} por braco).",
+               f"The required sample exceeds 5% of the population entered -- finite population "
+               f"correction applied (n adjusted from {n} to {n_final} per arm).")
         ))
 
     if not alertas:
-        alertas.append(Alerta("ok", "Nenhum alerta -- desenho dentro dos parametros esperados."))
+        alertas.append(Alerta("ok", _L("Nenhum alerta -- desenho dentro dos parametros esperados.",
+                                       "No alerts -- design within the expected parameters.")))
 
     lift_relativo = (delta / baseline) if baseline != 0 else 0.0
 
@@ -537,89 +581,110 @@ def _fmt_pct(x: float, casas: int = 2) -> str:
 
 
 def _fmt_int(n: int) -> str:
-    """Formata inteiro com separador de milhar no padrao BR (ponto)."""
-    return f"{n:,}".replace(",", ".")
+    """Inteiro com separador de milhar: ponto em portugues, virgula em ingles."""
+    s = f"{n:,}"
+    return s if idioma() == "en" else s.replace(",", ".")
 
 
 def _fmt_metrica(plano: PlanoTeste, valor: float, casas: int = 2) -> str:
     if plano.tipo_metrica == "proporcao":
         return _fmt_pct(valor, casas)
-    return f"{valor:,.{casas}f} {plano.unidade_metrica}".replace(",", "X").replace(".", ",").replace("X", ".")
+    s = f"{valor:,.{casas}f} {plano.unidade_metrica}"
+    if idioma() == "en":
+        return s
+    return s.replace(",", "X").replace(".", ",").replace("X", ".")
 
 
 _CADASTRO_CAMPOS = [
-    ("id_teste", "ID do teste"),
-    ("nome", "Nome do teste"),
-    ("area", "Área responsável"),
-    ("objetivo", "Objetivo"),
-    ("bu", "BU"),
-    ("metrica_nome", "Métrica"),
-    ("experimento", "Experimento"),
-    ("regiao", "Região"),
-    ("campanha", "Campanha"),
-    ("plataforma", "Plataforma"),
-    ("dispositivo", "Dispositivo"),
+    ("id_teste", "ID do teste", "Test ID"),
+    ("nome", "Nome do teste", "Test name"),
+    ("area", "Área responsável", "Owning team"),
+    ("objetivo", "Objetivo", "Goal"),
+    ("bu", "BU", "BU"),
+    ("metrica_nome", "Métrica", "Metric"),
+    ("experimento", "Experimento", "Experiment"),
+    ("regiao", "Região", "Region"),
+    ("campanha", "Campanha", "Campaign"),
+    ("plataforma", "Plataforma", "Platform"),
+    ("dispositivo", "Dispositivo", "Device"),
 ]
 
 
 def _cadastro_preenchido(plano: PlanoTeste) -> list[tuple[str, str]]:
     """Campos de cadastro do teste que foram preenchidos (rotulo, valor)."""
-    return [(rotulo, getattr(plano, campo)) for campo, rotulo in _CADASTRO_CAMPOS
+    return [(_L(pt, en), getattr(plano, campo)) for campo, pt, en in _CADASTRO_CAMPOS
             if getattr(plano, campo, "").strip()]
 
 
 def build_report(plano: PlanoTeste) -> str:
+    L = _L
+    prop = plano.tipo_metrica == "proporcao"
     linhas = []
     linhas.append("=" * 66)
-    linhas.append("DESENHO DO TESTE A/B")
+    linhas.append(L("DESENHO DO TESTE A/B", "A/B TEST DESIGN"))
     linhas.append("=" * 66)
     linhas.append("")
 
     cadastro = _cadastro_preenchido(plano)
     if cadastro:
-        linhas.append("CADASTRO DO TESTE")
+        linhas.append(L("CADASTRO DO TESTE", "TEST REGISTRATION"))
         for rotulo, valor in cadastro:
             linhas.append(f"  {rotulo + ' ':.<36} {valor}")
         linhas.append("")
 
-    verbo = "subir" if plano.direcao == "subir" else "cair"
-    linhas.append("O QUE ESTAMOS TESTANDO")
-    linhas.append(f"  Como estamos hoje ................. {_fmt_metrica(plano, plano.baseline)}")
+    sobe = plano.direcao == "subir"
+    verbo = L("subir", "go up") if sobe else L("cair", "go down")
+    linhas.append(L("O QUE ESTAMOS TESTANDO", "WHAT WE ARE TESTING"))
+    linhas.append(f"  {L('Como estamos hoje ................. ', 'Where we are today ................ ')}"
+                   f"{_fmt_metrica(plano, plano.baseline)}")
     sinal = "+" if plano.delta >= 0 else "-"
-    linhas.append(f"  Queremos que {verbo} para .............. {_fmt_metrica(plano, plano.alvo)} "
-                   f"({sinal}{abs(plano.delta)*100 if plano.tipo_metrica=='proporcao' else abs(plano.delta):.2f} "
-                   f"{'p.p.' if plano.tipo_metrica=='proporcao' else plano.unidade_metrica}, "
-                   f"{sinal}{abs(plano.lift_relativo)*100:.1f}% de {'lift' if plano.direcao=='subir' else 'reducao'})")
-    linhas.append(f"  Grupos ............................. {plano.variantes} (divisao igual entre eles)")
+    efeito = "lift" if sobe else L("reducao", "reduction")
+    linhas.append(f"  {L(f'Queremos que {verbo} para .............. ', f'We want it to {verbo} to ............. ')}"
+                   f"{_fmt_metrica(plano, plano.alvo)} "
+                   f"({sinal}{abs(plano.delta)*100 if prop else abs(plano.delta):.2f} "
+                   f"{'p.p.' if prop else plano.unidade_metrica}, "
+                   f"{sinal}{abs(plano.lift_relativo)*100:.1f}% {L('de', 'of')} {efeito})")
+    linhas.append(f"  {L('Grupos ............................. ', 'Groups ............................. ')}"
+                   f"{plano.variantes} {L('(divisao igual entre eles)', '(split equally)')}")
     linhas.append("")
-    linhas.append("RISCOS QUE ESTAMOS ACEITANDO")
-    linhas.append(f"  Chance de achar que funcionou sem funcionar ..... {_fmt_pct(plano.alfa_efetivo, 1)}"
-                   + (f"  (nominal {_fmt_pct(plano.alfa, 1)}, com Bonferroni)" if plano.bonferroni_aplicada else ""))
-    linhas.append(f"  Chance de perceber, se funcionar ................ {_fmt_pct(plano.poder, 0)}")
+    linhas.append(L("RISCOS QUE ESTAMOS ACEITANDO", "RISKS WE ARE ACCEPTING"))
+    linhas.append(f"  {L('Chance de achar que funcionou sem funcionar ..... ', 'Chance of thinking it worked when it did not .... ')}"
+                   f"{_fmt_pct(plano.alfa_efetivo, 1)}"
+                   + (f"  ({L('nominal', 'nominal')} {_fmt_pct(plano.alfa, 1)}, {L('com', 'with')} Bonferroni)"
+                      if plano.bonferroni_aplicada else ""))
+    linhas.append(f"  {L('Chance de perceber, se funcionar ................ ', 'Chance of noticing, if it works ................. ')}"
+                   f"{_fmt_pct(plano.poder, 0)}")
     linhas.append("")
-    linhas.append("AMOSTRA E PRAZO")
-    linhas.append("  Cada grupo (braco) e uma versao sendo testada, nao uma etapa da jornada:")
+    linhas.append(L("AMOSTRA E PRAZO", "SAMPLE AND DURATION"))
+    linhas.append(L("  Cada grupo (braco) e uma versao sendo testada, nao uma etapa da jornada:",
+                    "  Each group (arm) is a version being tested, not a step in the journey:"))
     for g in plano.grupos:
-        rotulo = f"Grupo {g['letra']} ({g['papel']})"
-        linhas.append(f"    {rotulo:<28} {_fmt_int(g['n'])} pessoas")
-    linhas.append(f"  Total do experimento (todos os grupos) .... {_fmt_int(plano.n_total)}")
-    linhas.append(f"  Amostra fecha em .................... {plano.dias_fechar} dias")
+        rotulo = f"{L('Grupo', 'Group')} {g['letra']} ({g['papel']})"
+        linhas.append(f"    {rotulo:<28} {_fmt_int(g['n'])} {L('pessoas', 'people')}")
+    linhas.append(f"  {L('Total do experimento (todos os grupos) .... ', 'Experiment total (all groups) ............. ')}"
+                   f"{_fmt_int(plano.n_total)}")
+    linhas.append(f"  {L('Amostra fecha em .................... ', 'Sample fills in ..................... ')}"
+                   f"{plano.dias_fechar} {L('dias', 'days')}")
     semanas = plano.dias_rodar // 7
-    linhas.append(f"  Rodar por ........................... {plano.dias_rodar} dias "
-                   f"({semanas} semana(s) completa(s))")
+    linhas.append(f"  {L('Rodar por ........................... ', 'Run for ............................. ')}"
+                   f"{plano.dias_rodar} {L('dias', 'days')} "
+                   f"({semanas} {L('semana(s) completa(s)', 'full week(s)')})")
     if plano.mde_realizado_no_prazo is not None:
-        linhas.append(f"  Se rodar so {plano.dias_rodar} dias, a menor diferenca que da pra ver e de "
-                       f"{plano.mde_realizado_no_prazo*100 if plano.tipo_metrica=='proporcao' else plano.mde_realizado_no_prazo:.2f}"
-                       f"{'% (pontos absolutos)' if plano.tipo_metrica=='proporcao' else ' ' + plano.unidade_metrica}")
+        valor = plano.mde_realizado_no_prazo * 100 if prop else plano.mde_realizado_no_prazo
+        unid = L('% (pontos absolutos)', '% (absolute points)') if prop else ' ' + plano.unidade_metrica
+        linhas.append(L(f"  Se rodar so {plano.dias_rodar} dias, a menor diferenca que da pra ver e de ",
+                        f"  If it runs only {plano.dias_rodar} days, the smallest visible difference is ")
+                      + f"{valor:.2f}{unid}")
     linhas.append("")
-    linhas.append("CUSTO DO NIVEL DE RIGOR")
+    linhas.append(L("CUSTO DO NIVEL DE RIGOR", "COST OF THE RIGOR LEVEL"))
     for c in plano.comparativo_alfa:
-        marcador = "  <- atual" if c["atual"] else ""
-        linhas.append(f"  erro {c['alfa_pct']:>2}%: {_fmt_int(c['n_por_braco'])} por grupo, ~{c['dias']} dias{marcador}")
+        marcador = L("  <- atual", "  <- current") if c["atual"] else ""
+        linhas.append(f"  {L('erro', 'error')} {c['alfa_pct']:>2}%: {_fmt_int(c['n_por_braco'])} "
+                       f"{L('por grupo', 'per group')}, ~{c['dias']} {L('dias', 'days')}{marcador}")
     linhas.append("")
 
     if plano.guardrails:
-        linhas.append("O QUE NAO PODE PIORAR")
+        linhas.append(L("O QUE NAO PODE PIORAR", "WHAT MUST NOT GET WORSE"))
         for g in plano.guardrails:
             linhas.append(f"  - {g.texto()}")
         linhas.append("")
@@ -637,43 +702,58 @@ def build_html_summary(plano: PlanoTeste) -> str:
     Nome, area e objetivo, junto com o restante do cadastro do teste (BU,
     metrica, experimento, regiao, campanha, plataforma, dispositivo), vem do
     proprio `plano` -- foram preenchidos na hora de montar o plano.
+
+    Sai na lingua ativa (definir_idioma).
     """
     import html as _html
     from datetime import datetime
 
+    L = _L
+    en = idioma() == "en"
     esc = _html.escape
     _meses_pt = ["janeiro", "fevereiro", "março", "abril", "maio", "junho",
                  "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
+    _meses_en = ["January", "February", "March", "April", "May", "June",
+                 "July", "August", "September", "October", "November", "December"]
     _agora = datetime.now()
-    hoje = f"{_agora.day:02d} de {_meses_pt[_agora.month - 1]} de {_agora.year}"
+    if en:
+        hoje = f"{_meses_en[_agora.month - 1]} {_agora.day}, {_agora.year}"
+    else:
+        hoje = f"{_agora.day:02d} de {_meses_pt[_agora.month - 1]} de {_agora.year}"
     semanas = plano.dias_rodar // 7
-    palavra_efeito = "Lift" if plano.direcao == "subir" else "Redução"
+    palavra_efeito = "Lift" if plano.direcao == "subir" else L("Redução", "Reduction")
     nome, area, objetivo = plano.nome, plano.area, plano.objetivo
+    prop = plano.tipo_metrica == "proporcao"
 
     grupos_html = "".join(
-        f'<div class="m"><div class="l">Grupo {g["letra"]} · {esc(g["papel"])}</div>'
-        f'<div class="v">{_fmt_int(g["n"])} pessoas</div></div>'
+        f'<div class="m"><div class="l">{L("Grupo", "Group")} {g["letra"]} · {esc(g["papel"])}</div>'
+        f'<div class="v">{_fmt_int(g["n"])} {L("pessoas", "people")}</div></div>'
         for g in plano.grupos
     )
     guardrails_html = "".join(
         f'<span class="chip">{esc(g.nome)}'
-        f'{" (hoje: " + esc(g.valor_atual) + ")" if g.valor_atual.strip() else ""} '
-        f'{"não sobe" if g.direcao == "nao_pode_subir" else "não cai"}</span>'
+        f'{" (" + L("hoje", "today") + ": " + esc(g.valor_atual) + ")" if g.valor_atual.strip() else ""} '
+        f'{L("não sobe", "must not go up") if g.direcao == "nao_pode_subir" else L("não cai", "must not go down")}</span>'
         for g in plano.guardrails
-    ) or '<span class="muted">nenhum definido</span>'
+    ) or f'<span class="muted">{L("nenhum definido", "none defined")}</span>'
 
     contexto_campos = [
-        ("BU", plano.bu), ("Métrica", plano.metrica_nome), ("Experimento", plano.experimento),
-        ("Região", plano.regiao), ("Campanha", plano.campanha),
-        ("Plataforma", plano.plataforma), ("Dispositivo", plano.dispositivo),
+        ("BU", plano.bu), (L("Métrica", "Metric"), plano.metrica_nome),
+        (L("Experimento", "Experiment"), plano.experimento),
+        (L("Região", "Region"), plano.regiao), (L("Campanha", "Campaign"), plano.campanha),
+        (L("Plataforma", "Platform"), plano.plataforma), (L("Dispositivo", "Device"), plano.dispositivo),
     ]
     contexto_html = "".join(
         f'<span class="chip">{esc(rotulo)}: {esc(valor)}</span>' for rotulo, valor in contexto_campos if valor.strip()
     )
+    titulo_padrao = L("Desenho de teste A/B", "A/B test design")
+    diferenca = abs(plano.delta) * 100 if prop else abs(plano.delta)
+    diferenca_txt = f"{'+' if plano.delta >= 0 else '-'}{diferenca:.2f}{'p.p.' if prop else ' ' + plano.unidade_metrica}"
+    verbo = L("subir", "go up") if plano.direcao == "subir" else L("cair", "go down")
 
     return f"""<!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8">
-<title>{esc(nome) or 'Desenho de teste A/B'} — DaVinci</title>
+<html lang="{'en' if en else 'pt-BR'}"><head><meta charset="utf-8">
+<title>{esc(nome) or titulo_padrao} — DaVinci</title>
 <style>
   body {{ font-family: -apple-system, "Segoe UI", Arial, sans-serif; background:#F6F9FD; color:#0F1E36;
          margin:0; padding:24px; }}
@@ -701,38 +781,38 @@ def build_html_summary(plano: PlanoTeste) -> str:
   <div class="sheet">
     <div class="head">
       <div>
-        <div class="title">{esc(nome) or 'Desenho de teste A/B'}</div>
-        <div class="sub">{(esc(area) + ' · ') if area else ''}{esc(objetivo) or 'Objetivo não preenchido'}</div>
+        <div class="title">{esc(nome) or titulo_padrao}</div>
+        <div class="sub">{(esc(area) + ' · ') if area else ''}{esc(objetivo) or L('Objetivo não preenchido', 'Goal not filled in')}</div>
       </div>
-      <div class="date">{('ID ' + esc(plano.id_teste) + '<br>') if plano.id_teste.strip() else ''}Gerado em<br>{hoje}</div>
+      <div class="date">{('ID ' + esc(plano.id_teste) + '<br>') if plano.id_teste.strip() else ''}{L('Gerado em', 'Generated on')}<br>{hoje}</div>
     </div>
 
-    <h4>O que estamos testando</h4>
+    <h4>{L('O que estamos testando', 'What we are testing')}</h4>
     <div class="grid">
-      <div class="m"><div class="l">Hoje</div><div class="v">{_fmt_metrica(plano, plano.baseline)}</div></div>
-      <div class="m"><div class="l">Queremos {('subir' if plano.direcao=='subir' else 'cair')} para</div><div class="v">{_fmt_metrica(plano, plano.alvo)}</div></div>
-      <div class="m"><div class="l">Diferença</div><div class="v">{'+' if plano.delta>=0 else '-'}{abs(plano.delta)*100 if plano.tipo_metrica=='proporcao' else abs(plano.delta):.2f}{'p.p.' if plano.tipo_metrica=='proporcao' else ' '+plano.unidade_metrica}</div></div>
+      <div class="m"><div class="l">{L('Hoje', 'Today')}</div><div class="v">{_fmt_metrica(plano, plano.baseline)}</div></div>
+      <div class="m"><div class="l">{L(f'Queremos {verbo} para', f'We want it to {verbo} to')}</div><div class="v">{_fmt_metrica(plano, plano.alvo)}</div></div>
+      <div class="m"><div class="l">{L('Diferença', 'Difference')}</div><div class="v">{diferenca_txt}</div></div>
       <div class="m"><div class="l">{palavra_efeito}</div><div class="v">{abs(plano.lift_relativo)*100:.1f}%</div></div>
     </div>
 
-    <h4>Riscos aceitos</h4>
+    <h4>{L('Riscos aceitos', 'Accepted risks')}</h4>
     <div class="grid">
-      <div class="m"><div class="l">Chance de erro</div><div class="v">{_fmt_pct(plano.alfa_efetivo, 1)}</div></div>
-      <div class="m"><div class="l">Chance de perceber</div><div class="v">{_fmt_pct(plano.poder, 0)}</div></div>
+      <div class="m"><div class="l">{L('Chance de erro', 'Chance of error')}</div><div class="v">{_fmt_pct(plano.alfa_efetivo, 1)}</div></div>
+      <div class="m"><div class="l">{L('Chance de perceber', 'Chance of noticing')}</div><div class="v">{_fmt_pct(plano.poder, 0)}</div></div>
     </div>
 
-    <h4>Gente e prazo</h4>
+    <h4>{L('Gente e prazo', 'People and duration')}</h4>
     <div class="grid big">
       {grupos_html}
       <div class="m big"><div class="l">Total</div><div class="v">{_fmt_int(plano.n_total)}</div></div>
-      <div class="m big"><div class="l">Rodar por</div><div class="v">{plano.dias_rodar}d</div></div>
+      <div class="m big"><div class="l">{L('Rodar por', 'Run for')}</div><div class="v">{plano.dias_rodar}d</div></div>
     </div>
 
-    <h4>Não pode piorar</h4>
+    <h4>{L('Não pode piorar', 'Must not get worse')}</h4>
     <div>{guardrails_html}</div>
 
-    {f'<h4>Contexto do experimento</h4><div>{contexto_html}</div>' if contexto_html else ''}
+    {f'<h4>{L("Contexto do experimento", "Experiment context")}</h4><div>{contexto_html}</div>' if contexto_html else ''}
 
-    <div class="foot">DaVinci · desenho de teste A/B · {semanas} semana(s) completa(s)</div>
+    <div class="foot">DaVinci · {L('desenho de teste A/B', 'A/B test design')} · {semanas} {L('semana(s) completa(s)', 'full week(s)')}</div>
   </div>
 </body></html>"""
